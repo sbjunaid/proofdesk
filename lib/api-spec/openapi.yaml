@@ -1,0 +1,513 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: ProofDesk API - AI-powered contract and document review SaaS
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: documents
+    description: Document upload and management
+  - name: reviews
+    description: AI review results and findings
+  - name: dashboard
+    description: Dashboard analytics and summaries
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /documents:
+    get:
+      operationId: listDocuments
+      tags: [documents]
+      summary: List all documents
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [pending, processing, completed, failed]
+          required: false
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+          required: false
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            default: 0
+          required: false
+      responses:
+        "200":
+          description: List of documents
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentList"
+    post:
+      operationId: createDocument
+      tags: [documents]
+      summary: Upload a new document for review
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDocumentBody"
+      responses:
+        "201":
+          description: Document created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Document"
+
+  /documents/{id}:
+    get:
+      operationId: getDocument
+      tags: [documents]
+      summary: Get a document by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Document details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Document"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteDocument
+      tags: [documents]
+      summary: Delete a document
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /documents/{id}/analyze:
+    post:
+      operationId: analyzeDocument
+      tags: [documents]
+      summary: Trigger AI analysis of a document
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Analysis started or completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Document"
+
+  /documents/{id}/review:
+    get:
+      operationId: getDocumentReview
+      tags: [reviews]
+      summary: Get full AI review for a document
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Full review with findings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentReview"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /findings:
+    get:
+      operationId: listFindings
+      tags: [reviews]
+      summary: List findings across all documents
+      parameters:
+        - in: query
+          name: severity
+          schema:
+            type: string
+            enum: [low, medium, high, critical]
+          required: false
+        - in: query
+          name: documentId
+          schema:
+            type: integer
+          required: false
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+          required: false
+      responses:
+        "200":
+          description: List of findings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FindingList"
+
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get dashboard summary statistics
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /dashboard/recent-activity:
+    get:
+      operationId: getRecentActivity
+      tags: [dashboard]
+      summary: Get recent document activity feed
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          required: false
+      responses:
+        "200":
+          description: Recent activity list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActivityList"
+
+  /dashboard/risk-breakdown:
+    get:
+      operationId: getRiskBreakdown
+      tags: [dashboard]
+      summary: Get risk level breakdown across all documents
+      responses:
+        "200":
+          description: Risk breakdown by category
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RiskBreakdown"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+      required:
+        - success
+
+    Document:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        documentType:
+          type: string
+        status:
+          type: string
+          enum: [pending, processing, completed, failed]
+        content:
+          type: string
+          nullable: true
+        overallRisk:
+          type: string
+          enum: [low, medium, high, critical]
+          nullable: true
+        summary:
+          type: string
+          nullable: true
+        findingCount:
+          type: integer
+        criticalCount:
+          type: integer
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - title
+        - documentType
+        - status
+        - findingCount
+        - criticalCount
+        - createdAt
+        - updatedAt
+
+    CreateDocumentBody:
+      type: object
+      properties:
+        title:
+          type: string
+        documentType:
+          type: string
+        content:
+          type: string
+      required:
+        - title
+        - documentType
+        - content
+
+    DocumentList:
+      type: object
+      properties:
+        documents:
+          type: array
+          items:
+            $ref: "#/components/schemas/Document"
+        total:
+          type: integer
+      required:
+        - documents
+        - total
+
+    Finding:
+      type: object
+      properties:
+        id:
+          type: integer
+        documentId:
+          type: integer
+        documentTitle:
+          type: string
+          nullable: true
+        category:
+          type: string
+        severity:
+          type: string
+          enum: [low, medium, high, critical]
+        title:
+          type: string
+        description:
+          type: string
+        recommendation:
+          type: string
+        clause:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+      required:
+        - id
+        - documentId
+        - category
+        - severity
+        - title
+        - description
+        - recommendation
+        - createdAt
+
+    FindingList:
+      type: object
+      properties:
+        findings:
+          type: array
+          items:
+            $ref: "#/components/schemas/Finding"
+        total:
+          type: integer
+      required:
+        - findings
+        - total
+
+    DocumentReview:
+      type: object
+      properties:
+        document:
+          $ref: "#/components/schemas/Document"
+        findings:
+          type: array
+          items:
+            $ref: "#/components/schemas/Finding"
+        summary:
+          type: string
+          nullable: true
+        overallRisk:
+          type: string
+          enum: [low, medium, high, critical]
+          nullable: true
+      required:
+        - document
+        - findings
+
+    DashboardSummary:
+      type: object
+      properties:
+        totalDocuments:
+          type: integer
+        completedReviews:
+          type: integer
+        pendingReviews:
+          type: integer
+        totalFindings:
+          type: integer
+        criticalFindings:
+          type: integer
+        highRiskDocuments:
+          type: integer
+        avgFindingsPerDoc:
+          type: number
+      required:
+        - totalDocuments
+        - completedReviews
+        - pendingReviews
+        - totalFindings
+        - criticalFindings
+        - highRiskDocuments
+        - avgFindingsPerDoc
+
+    ActivityItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum: [uploaded, analyzed, finding_added]
+        documentId:
+          type: integer
+        documentTitle:
+          type: string
+        description:
+          type: string
+        severity:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+      required:
+        - id
+        - type
+        - documentId
+        - documentTitle
+        - description
+        - createdAt
+
+    ActivityList:
+      type: object
+      properties:
+        activities:
+          type: array
+          items:
+            $ref: "#/components/schemas/ActivityItem"
+      required:
+        - activities
+
+    RiskBreakdown:
+      type: object
+      properties:
+        bySeverity:
+          type: array
+          items:
+            type: object
+            properties:
+              severity:
+                type: string
+              count:
+                type: integer
+            required:
+              - severity
+              - count
+        byCategory:
+          type: array
+          items:
+            type: object
+            properties:
+              category:
+                type: string
+              count:
+                type: integer
+            required:
+              - category
+              - count
+        byDocumentType:
+          type: array
+          items:
+            type: object
+            properties:
+              documentType:
+                type: string
+              count:
+                type: integer
+            required:
+              - documentType
+              - count
+      required:
+        - bySeverity
+        - byCategory
+        - byDocumentType
